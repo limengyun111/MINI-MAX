@@ -1,0 +1,190 @@
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Document</title>
+</head>
+
+<body>
+	<script>
+		// 代码题1    
+		let prev = {
+			a: 1,
+			b: [1, 2, 3],
+			c: {
+				d: 1,
+				f: 2,
+				e: [1, 2, 3]
+			},
+			g: null,
+		};
+		let next = {
+			a: 1,
+			b: [1, 2, 4],
+			c: {
+				d: 1,
+				f: 3,
+				e: [1, 2, 4]
+			},
+			g: {}
+		}
+		// 初始思路    
+		// 1. 获取到所有的key值，深度遍历key对应的value   
+		// 2. 严格对比，如果是简单类型，可以直接判断是否相同，如果是复杂类型，需要递归判断   
+		function deepDiff(prev, next) {
+			const res = {};
+
+			function dfs(p, n, path) {
+				Object.keys(p).forEach((pKey) => {
+					const pVal = p[pKey];
+					const nVal = n[pKey];
+					let curPath = path ? `${path}.${pKey}` : pKey;
+					if (pVal !== nVal) {
+						if (typeof pVal === 'object' && typeof nVal === 'object') {
+							if (pVal === null || nVal === null) {
+								res[curPath] = nVal;
+							} else {
+								dfs(pVal, nVal, curPath)
+							}
+						} else {
+							res[curPath] = nVal;
+						}
+					}
+				})
+			}
+			dfs(prev, next, '');
+			return res;
+		}
+		 console.log(deepDiff(prev, next))
+
+
+		// 预期返回{b: 1,c.d[2] = 4 },结果返回{"": 1, .c: 3, .c.e: 4}   
+		// debug过程
+		// 1. prev和next只保留一个属性，属性值为简单类型，然后慢慢增加，let prev = {a: 1} let next = {a: 2}    
+		// 2. 看到并修复了path的问题    // 3. 尝试复杂类型let prev = {a: 1, b: [1,2,3]} let next = {a: 2, b: [1,2,4]}    
+		// 4. 没有问题，尝试更复杂的类型    
+		// 5. 修改null的问题
+		// 6. 借助AI后，修复没有处理next中新增的属性、数组比较逻辑不够准确的问题
+
+		function deepDiffOptimized(prev, next) {
+			const res = {};
+
+			function dfs(p, n, path) {
+				// 获取所有键
+				const allKeys = new Set([...Object.keys(p || {}), ...Object.keys(n || {})]);
+
+				allKeys.forEach(curKey => {
+					const pVal = p?.[curKey];
+					const nVal = n?.[curKey];
+					const curPath = path ? `${path}.${curKey}` : curKey;
+
+					// 处理key只存在于next中的情况
+					if (!(curKey in p)) {
+						res[curPath] = nVal;
+						return;
+					}
+					// 处理key只存在于prev中的情况
+					if (!(curKey in n)) {
+						res[curPath] = undefined;
+						return;
+					}
+					// 值相同则跳过
+					if (pVal === nVal) return;
+					if (Array.isArray(pVal) && Array.isArray(nVal)) {
+						const maxLength = Math.max(pVal.length, nVal.length);
+						for (let i = 0; i < maxLength; i++) {
+							const pItem = pVal[i];
+							const nItem = nVal[i];
+							const arrayPath = `${curPath}[${i}]`;
+							// 处理索引只存在于next中的情况
+							if (i >= pVal.length) {
+								res[arrayPath] = nItem;
+								continue;
+							}
+							// 处理索引只存在于prev中的情况
+							if (i >= nVal.length) {
+								res[arrayPath] = undefined;
+								continue;
+							}
+							if (pItem !== nItem) {
+								if (typeof pItem === 'object' && typeof nItem === 'object' && pItem !== null && nItem !== null) {
+									dfs(pItem, nItem, arrayPath);
+
+								} else {
+									res[arrayPath] = nItem
+								}
+
+							}
+
+						}
+						return;
+
+					}
+					if (typeof pVal === 'object' && typeof nVal === 'object') {
+						if (pVal === null || nVal === null) {
+							res[curPath] = nVal;
+						} else {
+							dfs(pVal, nVal, curPath)
+						}
+						return;
+					}
+					res[curPath] = nVal;
+
+				})
+			}
+			dfs(prev, next, '');
+			return res;
+		}
+		console.log(deepDiffOptimized(prev, next))
+		// 代码题2    
+		let p = [{
+			path: 'home',
+			children: [{
+				path: 'child1',
+				children: [{
+					path: 'child2'
+				}]
+			}]
+		}, {
+			path: 'detail'
+		}]
+
+		function flattenRoute(r) {
+			let res = [];
+
+			function dfs(routeArray, parentPath) {
+				routeArray.forEach(route => {
+					const currentPath = parentPath ? `${parentPath}/${route.path}` : route.path;
+					res.push(currentPath);
+					if (route.children) {
+						dfs(route.children, currentPath)
+					}
+				})
+			}
+			dfs(r, '');
+			return res;
+		}
+		console.log(flattenRoute(p))
+
+		// 预期返回['home', 'home/child1', 'home/child1/child2', 'detal']，结果返回['/home/child1/child2', '/detail']    
+		// 修改path问题
+		// 借助AI后把Object.keys修改为forEache
+		// 总结：要明确区分数组和对象相关的方法
+
+		// 问答题1  useMemo和useCallback什么情况下不会执行    
+		// 我的理解：当useMemo和useCallback的依赖为空，或者依赖项不变时，useMemo和useCallback不会执行    
+		// 借助AI后，目前理解：依赖项数组的值与上一次渲染时完全相同，背后的比较机制是使用Object.is进行浅比较，所以要注意对象和数组的引用问题    
+		// 我没有回答出浅比较这一点，会想起在实际使用过程中，习惯性的使用JSON.stringify进行序列化
+		// 问答题2  如何实现一个ts中的pick    
+		// 思路：ts中Pick<T, K>用于从类型T中挑选出指定的属性键K，生成一个新的类型，但我忘记如何选出对象所有的key值了
+		//  type MyPick<T, K extends keyof T> { [P IN K]: T[P] }    
+		// 总结：keyof可以提取对象类型的所有键，并生成一个联合类型
+		// 问答题3 reducer为什么是一个纯函数    
+		// 我的理解：是为了保持state的纯洁，因为状态的更改是依赖state的    
+		// 借助AI后，目前理解：  是为了保持状态更新的可预测性、可测试性。如果不是纯函数，同样的action可能产生不同的状态
+		// 总结：我的理解前半部分是正确精准的，但是后半句和redux无关，这是react更新机制的一部分逻辑
+	</script>
+</body>
+
+</html>
